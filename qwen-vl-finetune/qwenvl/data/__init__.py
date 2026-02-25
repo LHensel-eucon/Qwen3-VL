@@ -2,7 +2,7 @@ import re
 
 XML_DATASET = {
     "annotation_path": "C:/Users\laura_hensel\PycharmProjects\open-llm-lab\data\processed/xml_dataset_train.json",
-    "data_path": "C:/Users\laura_hensel\PycharmProjects\open-llm-lab"
+    "data_path": "dachschaeden_komplett_bilder"
 }
 
 data_dict = {
