@@ -31,7 +31,8 @@ from transformers import (
     Qwen2VLForConditionalGeneration,
     Qwen2_5_VLForConditionalGeneration,
     Qwen3VLForConditionalGeneration,
-    Qwen3VLMoeForConditionalGeneration
+    Qwen3VLMoeForConditionalGeneration,
+    BitsAndBytesConfig
 )
 from qwenvl.data.data_processor import make_supervised_data_module
 from qwenvl.train.argument import (
@@ -100,6 +101,15 @@ def train(attn_implementation="flash_attention_2"):
     local_rank = training_args.local_rank
     os.makedirs(training_args.output_dir, exist_ok=True)
 
+    bnb_config = None
+    if getattr(model_args, "load_in_4bit", False):
+        bnb_config = BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type="nf4",
+            bnb_4bit_use_double_quant=True,
+            bnb_4bit_compute_dtype=torch.float16,
+        )
+
     if "qwen3" in model_args.model_name_or_path.lower() and "a" in Path(model_args.model_name_or_path.rstrip("/")).name.lower():
         model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
@@ -113,7 +123,8 @@ def train(attn_implementation="flash_attention_2"):
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             attn_implementation=attn_implementation,
-            dtype=(torch.bfloat16 if training_args.bf16 else None),
+            quantization_config=bnb_config,
+            torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen3vl"
     elif "qwen2.5" in model_args.model_name_or_path.lower():
@@ -204,3 +215,4 @@ def train(attn_implementation="flash_attention_2"):
 
 if __name__ == "__main__":
     train(attn_implementation="flash_attention_2")
+

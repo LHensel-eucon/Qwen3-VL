@@ -273,7 +273,7 @@ class LazySupervisedDataset(Dataset):
             if file_format == "jsonl":
                 annotations = read_jsonl(data["annotation_path"])
             else:
-                annotations = json.load(open(data["annotation_path"], "r"))
+                annotations = json.load(open(data["annotation_path"], "r", encoding="utf-8"))
             sampling_rate = data.get("sampling_rate", 1.0)
             if sampling_rate < 1.0:
                 annotations = random.sample(

@@ -10,6 +10,12 @@ class ModelArguments:
     tune_mm_mlp: bool = field(default=False)
     tune_mm_vision: bool = field(default=False)
 
+    load_in_4bit: Optional[bool] = field(
+        default=False,
+        metadata={"help": "Load model in 4-bit NF4 quantization for QLoRA."}
+    )
+
+
 @dataclass
 class DataArguments:
     dataset_use: str = field(default="")
