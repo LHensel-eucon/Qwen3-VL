@@ -1,8 +1,13 @@
+import os
 import re
+from pathlib import Path
+
+annotation_path = Path.cwd().parents[1] / "cap/data-capability/wd/INPUT_raw_data" / "dachschaeden_json" / "xml_dataset_train.json"
+data_path = Path.cwd().parents[1] / "cap/data-capability/wd/INPUT_raw_data" / "dachschaeden_bilder"
 
 XML_DATASET = {
-    "annotation_path": "dachschaeden_json/xml_dataset_train.json",
-    "data_path": "dachschaeden_bilder"
+    "annotation_path": annotation_path,
+    "data_path": data_path
 }
 
 data_dict = {
