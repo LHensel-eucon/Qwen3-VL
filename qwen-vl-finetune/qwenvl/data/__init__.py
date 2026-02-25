@@ -2,7 +2,7 @@ import re
 
 XML_DATASET = {
     "annotation_path": "dachschaeden_json/xml_dataset_train.json",
-    "data_path": "dachschaeden_komplett_bilder"
+    "data_path": "dachschaeden_bilder"
 }
 
 data_dict = {
