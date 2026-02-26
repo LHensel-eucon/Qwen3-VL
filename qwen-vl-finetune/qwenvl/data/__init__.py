@@ -1,9 +1,12 @@
-import os
 import re
 from pathlib import Path
+import os
 
-annotation_path = Path.cwd().parents[1] / "cap/data-capability/wd/INPUT_raw_data" / "dachschaeden_json" / "xml_dataset_train.json"
-data_path = Path.cwd().parents[1] / "cap/data-capability/wd/INPUT_raw_data" / "dachschaeden_bilder"
+annotation_path = Path(os.environ["AZUREML_INPUT_position_data"])
+data_path = Path(os.environ["AZUREML_INPUT_image_data"])
+
+#annotation_path = Path.cwd().parents[1] / "cap/data-capability/wd/INPUT_raw_data" / "dachschaeden_json" / "xml_dataset_train.json"
+#data_path = Path.cwd().parents[1] / "cap/data-capability/wd/INPUT_raw_data" / "dachschaeden_bilder"
 
 XML_DATASET = {
     "annotation_path": annotation_path,
