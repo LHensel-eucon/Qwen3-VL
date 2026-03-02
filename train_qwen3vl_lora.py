@@ -71,7 +71,7 @@ def main():
     MODEL_PATH = Path(args.model)
 
     SCRIPT_DIR = Path(__file__).resolve().parent
-    REPO_ROOT = SCRIPT_DIR
+    REPO_ROOT = str(SCRIPT_DIR)
     TRAINER = os.path.join(REPO_ROOT, "qwen-vl-finetune", "qwenvl", "train", "train_qwen.py")
 
     if not os.path.exists(TRAINER):
