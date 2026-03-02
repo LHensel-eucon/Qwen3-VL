@@ -21,6 +21,7 @@ import torch
 import transformers
 import sys
 from pathlib import Path
+from transformers import AutoConfig
 
 project_root = Path(__file__).parent.parent.parent
 sys.path.append(str(project_root))
@@ -98,27 +99,6 @@ def train(attn_implementation="flash_attention_2"):
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
-    print("DEBUG: model_name_or_path =", model_args.model_name_or_path)
-    print("DEBUG: directory listing:")
-    import os
-    os.system(f"ls -R {model_args.model_name_or_path} || true")
-
-    # --- PATCH for AzureML model detection ---
-    model_path = Path(model_args.model_name_or_path)
-
-    # AzureML model directories look like /mnt/.../models/<name>/<version>/
-    model_dirname = model_path.name.lower()
-    parent_dirname = model_path.parent.name.lower()
-
-    # Detect Qwen3-VL models even when AzureML rewrites the path
-    is_qwen3 = (
-            "qwen3" in model_args.model_name_or_path.lower()
-            or "qwen3" in model_dirname
-            or "qwen3" in parent_dirname
-    )
-
-    is_qwen3_moe = is_qwen3 and "moe" in model_dirname
-
     local_rank = training_args.local_rank
     os.makedirs(training_args.output_dir, exist_ok=True)
 
@@ -131,63 +111,53 @@ def train(attn_implementation="flash_attention_2"):
             bnb_4bit_compute_dtype=torch.float16,
         )
 
-    if is_qwen3_moe:
+    cfg = AutoConfig.from_pretrained(
+        model_args.model_name_or_path,
+        cache_dir=training_args.cache_dir
+    )
+
+    print("Detected model_type from config:", cfg.model_type)
+
+    if cfg.model_type == "qwen3_vl_moe":
         model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             attn_implementation=attn_implementation,
-            dtype=(torch.bfloat16 if training_args.bf16 else None),
+            torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
+            quantization_config=bnb_config,
         )
         data_args.model_type = "qwen3vl"
 
-    elif is_qwen3:
+    elif cfg.model_type == "qwen3_vl":
         model = Qwen3VLForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             attn_implementation=attn_implementation,
-            quantization_config=bnb_config,
             torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
+            quantization_config=bnb_config,
         )
         data_args.model_type = "qwen3vl"
 
-    elif "qwen3" in model_args.model_name_or_path.lower() and "a" in Path(model_args.model_name_or_path.rstrip("/")).name.lower():
-        model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
-            model_args.model_name_or_path,
-            cache_dir=training_args.cache_dir,
-            attn_implementation=attn_implementation,
-            dtype=(torch.bfloat16 if training_args.bf16 else None),
-        )
-        data_args.model_type = "qwen3vl"
-    elif "qwen3" in model_args.model_name_or_path.lower():
-        model = Qwen3VLForConditionalGeneration.from_pretrained(
-            model_args.model_name_or_path,
-            cache_dir=training_args.cache_dir,
-            attn_implementation=attn_implementation,
-            quantization_config=bnb_config,
-            torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
-        )
-        data_args.model_type = "qwen3vl"
-    elif "qwen2.5" in model_args.model_name_or_path.lower():
+    elif cfg.model_type == "qwen2.5_vl":
         model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             attn_implementation=attn_implementation,
-            dtype=(torch.bfloat16 if training_args.bf16 else None),
+            torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen2.5vl"
-    else:
+
+    elif cfg.model_type == "qwen2_vl":
         model = Qwen2VLForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
             attn_implementation=attn_implementation,
-            dtype=(torch.bfloat16 if training_args.bf16 else None),
+            torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen2vl"
 
-    print(f'the initlized model is {model_args.model_name_or_path} the class is {model.__class__.__name__}')
-    processor = AutoProcessor.from_pretrained(
-        model_args.model_name_or_path,
-    )
+    else:
+        raise ValueError(f"Unknown Qwen model_type in config: {cfg.model_type}")
 
     if data_args.data_flatten or data_args.data_packing:
         replace_qwen2_vl_attention_class()
