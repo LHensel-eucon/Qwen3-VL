@@ -110,7 +110,18 @@ def train(attn_implementation="flash_attention_2"):
             bnb_4bit_compute_dtype=torch.float16,
         )
 
-    if "qwen3" in model_args.model_name_or_path.lower() and "a" in Path(model_args.model_name_or_path.rstrip("/")).name.lower():
+    if hasattr(model_args, "model_type") and model_args.model_type == "qwen3vl":
+        model = Qwen3VLForConditionalGeneration.from_pretrained(
+            model_args.model_name_or_path,
+            cache_dir=training_args.cache_dir,
+            attn_implementation=attn_implementation,
+            quantization_config=bnb_config,
+            torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
+        )
+        data_args.model_type = "qwen3vl"
+        print("FORCED QWEN3-VL MODEL DETECTED")
+
+    elif "qwen3" in model_args.model_name_or_path.lower() and "a" in Path(model_args.model_name_or_path.rstrip("/")).name.lower():
         model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
