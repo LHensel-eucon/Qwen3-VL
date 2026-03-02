@@ -158,7 +158,7 @@ def main():
     torchrun_cmd = [sys.executable, TRAINER] + args_model  # Single GPU → do NOT use torch.distributed.run
 
     logger.info("\n[Launching training]")
-    logger.info(" ".join(shlex.quote(t) for t in torchrun_cmd))
+    logger.info(" ".join(shlex.quote(str(t)) for t in torchrun_cmd))
 
     env = os.environ.copy()
     env.setdefault("PYTHONWARNINGS", "ignore")
