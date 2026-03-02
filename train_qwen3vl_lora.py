@@ -72,7 +72,7 @@ def main():
 
     SCRIPT_DIR = Path(__file__).resolve().parent
     REPO_ROOT = SCRIPT_DIR
-    TRAINER = REPO_ROOT / "qwen-vl-finetune" / "qwenvl" / "train" / "train_qwen.py"
+    TRAINER = os.path.join(REPO_ROOT, "qwen-vl-finetune", "qwenvl", "train", "train_qwen.py")
 
     if not os.path.exists(TRAINER):
         sys.stderr.write(f"ERROR: Could not find train_qwen.py at {TRAINER}\n")
