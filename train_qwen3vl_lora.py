@@ -14,6 +14,8 @@ def cli_args():
     parser.add_argument("--batch_size", type=int)
     parser.add_argument("--context_length", type=int)
     parser.add_argument("--model_out", type=str)
+    parser.add_argument("--position_data", type=str)
+    parser.add_argument("--image_data", type=str)
     # parser.add_argument("--cache_dir", type=str)
 
     return parser.parse_args()
@@ -155,12 +157,22 @@ def main():
     #   f"--master_addr={MASTER_ADDR}",
     #   f"--master_port={MASTER_PORT}",
     # ] + args_model
+
+    # after parsing args
+    POSITION_PATH = Path(args.position_data) if args.position_data else None
+    IMAGE_PATH = Path(args.image_data) if args.image_data else None
+
+    env = os.environ.copy()
+    if POSITION_PATH is not None:
+        env["AZUREML_INPUT_position_data"] = str(POSITION_PATH)
+    if IMAGE_PATH is not None:
+        env["AZUREML_INPUT_image_data"] = str(IMAGE_PATH)
+
     torchrun_cmd = [sys.executable, TRAINER] + args_model  # Single GPU → do NOT use torch.distributed.run
 
     logger.info("\n[Launching training]")
     logger.info(" ".join(shlex.quote(str(t)) for t in torchrun_cmd))
 
-    env = os.environ.copy()
     env.setdefault("PYTHONWARNINGS", "ignore")
 
     proc = subprocess.Popen(torchrun_cmd, env=env)
