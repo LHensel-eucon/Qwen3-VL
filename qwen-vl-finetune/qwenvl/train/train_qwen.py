@@ -98,6 +98,11 @@ def train(attn_implementation="flash_attention_2"):
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    print("DEBUG: model_name_or_path =", model_args.model_name_or_path)
+    print("DEBUG: directory listing:")
+    import os
+    os.system(f"ls -R {model_args.model_name_or_path} || true")
+
     # --- PATCH for AzureML model detection ---
     model_path = Path(model_args.model_name_or_path)
 
