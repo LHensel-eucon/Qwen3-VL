@@ -70,11 +70,9 @@ def main():
     # -------- setup paths and code locations
     MODEL_PATH = Path(args.model)
 
-    SCRIPT_DIR = Path(__file__).resolve().parent  # mlops/aml/scripts
-    MLOPS_ROOT = SCRIPT_DIR.parents[1]  # mlops/
-    REPO_ROOT = MLOPS_ROOT / "Qwen3-VL"  # mlops/Qwen3-VL
-
-    TRAINER = os.path.join(REPO_ROOT, "qwen-vl-finetune", "qwenvl", "train", "train_qwen.py")
+    SCRIPT_DIR = Path(__file__).resolve().parent
+    REPO_ROOT = SCRIPT_DIR
+    TRAINER = REPO_ROOT / "qwen-vl-finetune" / "qwenvl" / "train" / "train_qwen.py"
 
     if not os.path.exists(TRAINER):
         sys.stderr.write(f"ERROR: Could not find train_qwen.py at {TRAINER}\n")
