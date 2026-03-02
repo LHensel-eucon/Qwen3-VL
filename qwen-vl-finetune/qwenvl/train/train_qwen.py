@@ -98,6 +98,22 @@ def train(attn_implementation="flash_attention_2"):
     )
     model_args, data_args, training_args = parser.parse_args_into_dataclasses()
 
+    # --- PATCH for AzureML model detection ---
+    model_path = Path(model_args.model_name_or_path)
+
+    # AzureML model directories look like /mnt/.../models/<name>/<version>/
+    model_dirname = model_path.name.lower()
+    parent_dirname = model_path.parent.name.lower()
+
+    # Detect Qwen3-VL models even when AzureML rewrites the path
+    is_qwen3 = (
+            "qwen3" in model_args.model_name_or_path.lower()
+            or "qwen3" in model_dirname
+            or "qwen3" in parent_dirname
+    )
+
+    is_qwen3_moe = is_qwen3 and "moe" in model_dirname
+
     local_rank = training_args.local_rank
     os.makedirs(training_args.output_dir, exist_ok=True)
 
@@ -110,7 +126,16 @@ def train(attn_implementation="flash_attention_2"):
             bnb_4bit_compute_dtype=torch.float16,
         )
 
-    if hasattr(model_args, "model_type") and model_args.model_type == "qwen3vl":
+    if is_qwen3_moe:
+        model = Qwen3VLMoeForConditionalGeneration.from_pretrained(
+            model_args.model_name_or_path,
+            cache_dir=training_args.cache_dir,
+            attn_implementation=attn_implementation,
+            dtype=(torch.bfloat16 if training_args.bf16 else None),
+        )
+        data_args.model_type = "qwen3vl"
+
+    elif is_qwen3:
         model = Qwen3VLForConditionalGeneration.from_pretrained(
             model_args.model_name_or_path,
             cache_dir=training_args.cache_dir,
@@ -119,7 +144,6 @@ def train(attn_implementation="flash_attention_2"):
             torch_dtype=(torch.bfloat16 if training_args.bf16 else None),
         )
         data_args.model_type = "qwen3vl"
-        print("FORCED QWEN3-VL MODEL DETECTED")
 
     elif "qwen3" in model_args.model_name_or_path.lower() and "a" in Path(model_args.model_name_or_path.rstrip("/")).name.lower():
         model = Qwen3VLMoeForConditionalGeneration.from_pretrained(

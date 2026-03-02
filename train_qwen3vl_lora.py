@@ -85,8 +85,6 @@ def main():
         # TRAINER,
         "--model_name_or_path",
         str(MODEL_PATH),
-        "--model_type",
-        "qwen3vl",
         "--tune_mm_llm",
         "True",
         "--tune_mm_vision",
