@@ -159,6 +159,11 @@ def train(attn_implementation="flash_attention_2"):
     else:
         raise ValueError(f"Unknown Qwen model_type in config: {cfg.model_type}")
 
+    processor = AutoProcessor.from_pretrained(
+        model_args.model_name_or_path,
+        cache_dir=training_args.cache_dir,
+    )
+
     if data_args.data_flatten or data_args.data_packing:
         replace_qwen2_vl_attention_class()
     model.config.use_cache = False
