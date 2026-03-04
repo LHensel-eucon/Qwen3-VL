@@ -208,5 +208,6 @@ def main():
 
 
 if __name__ == "__main__":
+    os.environ.setdefault("MLFLOW_REGISTRY_URI", "")
     with mlflow.start_run():
         main()
