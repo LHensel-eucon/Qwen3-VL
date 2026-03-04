@@ -6,6 +6,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+import mlflow
+
 
 def cli_args():
     parser = argparse.ArgumentParser()
@@ -71,7 +73,7 @@ def main():
     # No DeepSpeed for single GPU
     # DEEPSPEED_CFG = ""
 
-    DATA_FLATTEN = "False" # erhöht effizienz wenn an, aber momentan für debugging aus
+    DATA_FLATTEN = "False"  # erhöht effizienz wenn an, aber momentan für debugging aus
     DATA_PACKING = "False"
 
     # -------- setup paths and code locations
@@ -182,8 +184,29 @@ def main():
 
     proc = subprocess.Popen(torchrun_cmd, env=env)
     proc.wait()
+
+    if proc.returncode == 0:
+        logger.info("[Logging model artifacts to MLflow]")
+        mlflow.log_artifacts(str(OUTPUT_DIR), artifact_path="model_output")
+        mlflow.log_params(
+            {
+                "lora_r": LORA_R,
+                "lora_alpha": LORA_ALPHA,
+                "lora_dropout": LORA_DROPOUT,
+                "learning_rate": LEARNING_RATE,
+                "num_epochs": NUM_EPOCHS,
+                "model_max_length": MODEL_MAX_LENGTH,
+                "batch_size": PER_DEVICE_TRAIN_BATCH_SIZE,
+                "train_frac": args.train_frac,
+            }
+        )
+        logger.info("Model artifacts logged successfully.")
+    else:
+        logger.error(f"Training failed with return code {proc.returncode}")
+
     sys.exit(proc.returncode)
 
 
 if __name__ == "__main__":
-    main()
+    with mlflow.start_run():
+        main()
