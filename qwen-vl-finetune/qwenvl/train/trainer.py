@@ -7,23 +7,10 @@ from transformers import Trainer
 from transformers.cache_utils import Cache
 from transformers.utils.deprecation import deprecate_kwarg
 from transformers.processing_utils import Unpack
-from transformers.models.qwen2_vl.modeling_qwen2_vl import (
-    Qwen2VisionTransformerPretrainedModel,
-    Qwen2VLModel,
-    apply_multimodal_rotary_pos_emb,
-)
-from transformers.models.qwen2_5_vl.modeling_qwen2_5_vl import (
-    Qwen2_5_VisionTransformerPretrainedModel,
-    Qwen2_5_VLModel,
-)
 from transformers.models.qwen3_vl.modeling_qwen3_vl import (
     Qwen3VLVisionModel,
     Qwen3VLModel,
     apply_rotary_pos_emb,
-)
-from transformers.models.qwen3_vl_moe.modeling_qwen3_vl_moe import (
-    Qwen3VLMoeVisionModel,
-    Qwen3VLMoeModel,
 )
 from transformers.utils import logging
 
@@ -107,58 +94,6 @@ def flash_attention_forward(
 
     return attn_output, None
 
-
-@deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
-def qwen2vl_forward(
-    self,
-    hidden_states: torch.Tensor,
-    attention_mask: Optional[torch.Tensor] = None,
-    position_ids: Optional[torch.LongTensor] = None,
-    past_key_values: Optional[Cache] = None,
-    output_attentions: bool = False,
-    use_cache: bool = False,
-    cache_position: Optional[torch.LongTensor] = None,
-    position_embeddings: Optional[tuple[torch.Tensor, torch.Tensor]] = None,  # necessary, but kept here for BC
-    **kwargs: Unpack[FlashAttentionKwargs],
-) -> tuple[torch.Tensor, Optional[torch.Tensor], Optional[tuple[torch.Tensor]]]:
-    bsz, q_len, _ = hidden_states.size()
-
-    query_states = self.q_proj(hidden_states)
-    key_states = self.k_proj(hidden_states)
-    value_states = self.v_proj(hidden_states)
-
-    query_states = query_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
-    key_states = key_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
-    value_states = value_states.view(bsz, q_len, -1, self.head_dim).transpose(1, 2)
-
-    cos, sin = position_embeddings
-    query_states, key_states = apply_multimodal_rotary_pos_emb(
-        query_states, key_states, cos, sin, self.rope_scaling["mrope_section"]
-    )
-
-    if past_key_values is not None:
-        cache_kwargs = {"sin": sin, "cos": cos, "cache_position": cache_position}  # Specific to RoPE models
-        key_states, value_states = past_key_values.update(key_states, value_states, self.layer_idx, cache_kwargs)
-
-    attn_output, attn_weights = flash_attention_forward(
-        self,
-        query_states,
-        key_states,
-        value_states,
-        attention_mask,
-        dropout=0.0 if not self.training else self.attention_dropout,
-        scaling=self.scaling,
-        sliding_window=self.sliding_window,
-        position_ids=position_ids,  # pass positions for FA2
-        **kwargs,
-    )
-
-    attn_output = attn_output.reshape(bsz, q_len, -1).contiguous()
-    attn_output = self.o_proj(attn_output)
-    return attn_output, attn_weights
-
-
-
 @deprecate_kwarg("past_key_value", new_name="past_key_values", version="4.58")
 def qwen3vl_forward(
     self,
@@ -199,55 +134,32 @@ def qwen3vl_forward(
     attn_output = self.o_proj(attn_output)
     return attn_output, attn_weights
 
-
+# making the mask more robust for the case where it is not already in the expected format (e.g., diff transformer versions)
 def return_mask(
-    config,
-    input_embeds,
-    attention_mask,
-    cache_position,
-    past_key_values,
-    position_ids,
+    config=None,
+    input_embeds: Optional[torch.Tensor] = None,
+    attention_mask: Optional[torch.Tensor] = None,
+    cache_position: Optional[torch.LongTensor] = None,
+    past_key_values=None,
+    position_ids: Optional[torch.Tensor] = None,
+    *args,
     **kwargs
 ):
+    # Prefer named kwarg if present
+    if "attention_mask" in kwargs:
+        return kwargs["attention_mask"]
+    # Else, what we got as named param is fine
     return attention_mask
-
 
 def replace_qwen2_vl_attention_class():
     import transformers
     import transformers.modeling_flash_attention_utils
 
-
-    transformers.models.qwen2_vl.modeling_qwen2_vl.Qwen2VLAttention.forward = (
-        qwen2vl_forward
-    )
-    transformers.models.qwen2_vl.modeling_qwen2_vl.create_causal_mask = (
-        return_mask
-    )
-    transformers.models.qwen2_vl.modeling_qwen2_vl.create_sliding_window_causal_mask = (
-        return_mask
-    )    
-    ## qwen2_5_vl
-    transformers.models.qwen2_5_vl.modeling_qwen2_5_vl.Qwen2_5_VLAttention.forward = (
-        qwen2vl_forward
-    )
-    transformers.models.qwen2_5_vl.modeling_qwen2_5_vl.create_causal_mask = (
-        return_mask
-    )
-    transformers.models.qwen2_5_vl.modeling_qwen2_5_vl.create_sliding_window_causal_mask = (
-        return_mask
-    )
     ## qwen3vl
     transformers.models.qwen3_vl.modeling_qwen3_vl.Qwen3VLTextAttention.forward = (
         qwen3vl_forward
     )
     transformers.models.qwen3_vl.modeling_qwen3_vl.create_causal_mask = (
-        return_mask
-    )
-    ## qwen3vl moe
-    transformers.models.qwen3_vl_moe.modeling_qwen3_vl_moe.Qwen3VLMoeTextAttention.forward = (
-        qwen3vl_forward
-    )
-    transformers.models.qwen3_vl_moe.modeling_qwen3_vl_moe.create_causal_mask = (
         return_mask
     )
 
@@ -494,18 +406,7 @@ def create_optimizer(self):
 # Apply monkey patches
 Trainer.create_optimizer = create_optimizer
 
-Qwen2VisionTransformerPretrainedModel.print_trainable_parameters = (
-    print_trainable_parameters_visual
-)
-Qwen2VLModel.print_trainable_parameters = print_trainable_parameters
-Qwen2_5_VisionTransformerPretrainedModel.print_trainable_parameters = (
-    print_trainable_parameters_visual
-)
-Qwen2_5_VLModel.print_trainable_parameters = print_trainable_parameters
-
 Qwen3VLVisionModel.print_trainable_parameters = (
     print_trainable_parameters_visual
 )
 Qwen3VLModel.print_trainable_parameters = print_trainable_parameters
-Qwen3VLMoeVisionModel.print_trainable_parameters = print_trainable_parameters_visual
-Qwen3VLMoeModel.print_trainable_parameters = print_trainable_parameters

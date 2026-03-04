@@ -66,7 +66,7 @@ def main():
     # No DeepSpeed for single GPU
     # DEEPSPEED_CFG = ""
 
-    DATA_FLATTEN = "True"
+    DATA_FLATTEN = "False" # erhöht effizienz wenn an, aber momentan für debugging aus
     DATA_PACKING = "False"
 
     # -------- setup paths and code locations

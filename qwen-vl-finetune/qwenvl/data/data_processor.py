@@ -256,15 +256,10 @@ class LazySupervisedDataset(Dataset):
         self.video_min_total_pixels = getattr(
             data_args, "video_min_total_pixels", 256 * 28 * 28
         )
-        self.model_type = data_args.model_type
-        if data_args.model_type == "qwen3vl":
-            self.get_rope_index = get_rope_index_3
-        elif data_args.model_type == "qwen2.5vl":
-            self.get_rope_index = get_rope_index_25
-        elif data_args.model_type == "qwen2vl":
-            self.get_rope_index = get_rope_index_2
-        else:
-            raise ValueError(f"model_type: {data_args.model_type} not supported")
+
+        # QWEN3-VL ONLY
+        self.model_type = "qwen3vl"
+        self.get_rope_index = get_rope_index_3
 
         list_data_dict = []
 
