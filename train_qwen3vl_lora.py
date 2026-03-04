@@ -27,6 +27,11 @@ def main():
     logger = logging.getLogger(__name__)
     args = cli_args()
 
+    # -------- Confirm parameters
+    logger.info(f"Train fraction: {args.train_frac}")
+    logger.info(f"Batch size: {args.batch_size}")
+    logger.info(f"Context length: {args.context_length}")
+
     # -------- Confiure
     OUTPUT_DIR = Path(args.model_out)
     # CACHE_DIR = Path(args.cache_dir)
@@ -127,8 +132,8 @@ def main():
         # Scheduling
         "--num_train_epochs",
         str(NUM_EPOCHS),
-        "--warmup_ratio",
-        "0.03",
+        "--warmup_steps",
+        "2",
         "--lr_scheduler_type",
         "cosine",
         "--weight_decay",
